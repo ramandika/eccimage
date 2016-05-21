@@ -19,6 +19,11 @@ public class ECCEG {
     BigInteger privateKey,prime;
     EllipticalCurve.Point publicKey,basePoint;
     EllipticalCurve ecc;
+
+    public BigInteger getKstatic() {
+        return kstatic;
+    }
+
     BigInteger kstatic=new BigInteger("1000");
 
     public ECCEG(ECurve input){
@@ -27,7 +32,7 @@ public class ECCEG {
         basePoint = input.getBasePoint();
     }
 
-    private EllipticalCurve.Point encodeMessage(BigInteger input){
+    public EllipticalCurve.Point encodeMessage(BigInteger input){
         boolean found=false;
         BigInteger satu=new BigInteger("1");
         BigInteger dua=new BigInteger("2");
@@ -50,11 +55,11 @@ public class ECCEG {
         return new EllipticalCurve.Point(x,y);
     }
 
-    private BigInteger decodeMessage(EllipticalCurve.Point p, BigInteger k){
+    public BigInteger decodeMessage(EllipticalCurve.Point p, BigInteger k){
         return p.getX().subtract(new BigInteger("1")).divide(k);
     }
 
-    public class CipherPair{
+    public static class CipherPair{
         EllipticalCurve.Point p1,p2;
         public CipherPair(EllipticalCurve.Point p1,EllipticalCurve.Point p2){this.p1=p1;this.p2=p2;}
         public EllipticalCurve.Point getP1(){return p1;}
@@ -69,9 +74,11 @@ public class ECCEG {
         System.out.println("private-key:"+privateKey+"\n"+"public-key:("+publicKey.getX()+","+publicKey.getY()+")");
         //convert each message to point
         System.out.println("Encrypted");
+        BigInteger k=Utils.generateK(prime);
+        int counter =0 ;
         for(BigInteger m : messages){
-            BigInteger k=Utils.generateK(prime);
             EllipticalCurve.Point pm = encodeMessage(m);
+            System.out.println(counter++);
             //System.out.println(m+"-->"+"("+pm.getX()+","+pm.getY()+")");
             result.add(new CipherPair(ecc.coefMultiply(k,basePoint),ecc.add(pm,ecc.coefMultiply(k,publicKey))));
         }

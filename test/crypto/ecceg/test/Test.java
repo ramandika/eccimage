@@ -8,12 +8,12 @@ import crypto.ecceg.logic.ECCEG;
 import crypto.ecceg.logic.ECurve;
 import crypto.ecceg.logic.EllipticalCurve;
 import crypto.ecceg.utils.*;
+
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -40,17 +40,85 @@ public class Test {
         return noLeadingZero;
     }
 
+    public static double getShannonEntropy_Image(BufferedImage actualImage){
+        List<String> values= new ArrayList<String>();
+        int n = 0;
+        Map<Integer, Integer> occ = new HashMap<>();
+        for(int i=0;i<actualImage.getHeight();i++){
+            for(int j=0;j<actualImage.getWidth();j++){
+                int pixel = actualImage.getRGB(j, i);
+                int alpha = (pixel >> 24) & 0xff;
+                int red = (pixel >> 16) & 0xff;
+                int green = (pixel >> 8) & 0xff;
+                int blue = (pixel) & 0xff;
+                //0.2989 * R + 0.5870 * G + 0.1140 * B greyscale conversion
+//System.out.println("i="+i+" j="+j+" argb: " + alpha + ", " + red + ", " + green + ", " + blue);
+                int d= (int)Math.round(0.2989 * red + 0.5870 * green + 0.1140 * blue);
+                if(!values.contains(String.valueOf(d)))
+                    values.add(String.valueOf(d));
+                if (occ.containsKey(d)) {
+                    occ.put(d, occ.get(d) + 1);
+                } else {
+                    occ.put(d, 1);
+                }
+                ++n;
+            }
+        }
+        double e = 0.0;
+        for (Map.Entry<Integer, Integer> entry : occ.entrySet()) {
+            int cx = entry.getKey();
+            double p = (double) entry.getValue() / n;
+            e += p * Math.log(p)/Math.log(2);
+        }
+        return -e;
+    }
+
     /**
      * @param args the command line arguments
      */
 
     public static void main(String[] args) {
-        byte[] arr = { (byte)0x00,0x01, 0x02, 0x03, (byte)0x04 };
+/*        int[] pixels =new int[]{
+                0xFF, 0xF1, 0xF2, 0xF3, 0xF4,
+                0x01, 0x02, 0x03, 0x04, 0x05,
+                0x05, 0x04, 0x03, 0x01, 0x02,
+                0xD1, 0xE2, 0x12, 0x22, 0x33,
+        };*/
+        Image img = new Image("sky.png");
+        BigInteger[] resultBigInt = img.convertToBigInt(192);
+        System.out.println("Plain");
+        for(BigInteger bi : resultBigInt) System.out.println(bi);
+        ArrayList<BigInteger> messages= new ArrayList<BigInteger>(Arrays.asList(resultBigInt)); //testArrayInput();
+        System.out.println("=======================");
+        ECurve eCurve = new ECurve();
+        eCurve.toP192();
+        ECCEG elgamal=new ECCEG(eCurve);
+        List<EllipticalCurve.Point> keyPoint = new ArrayList<>();
+        List<BigInteger> cipherPixels = new ArrayList<>();
+        ArrayList<ECCEG.CipherPair> result=elgamal.encrypt(messages);
+        for(ECCEG.CipherPair pairpoint:result){
+            EllipticalCurve.Point p1=pairpoint.getP1();
+            keyPoint.add(p1);
+            EllipticalCurve.Point p2=pairpoint.getP2();
+            cipherPixels.add(p2.getY());
+            //System.out.println("[("+p2.getX()+","+p2.getY()+")]");
+            //System.out.println("[("+p1.getX()+","+p1.getY()+")"+", ("+p2.getX()+","+p2.getY()+")]");
+        }
+        System.out.println("=======================");
+        //List<BigInteger> bi=elgamal.decrypt(result);
+        //for(BigInteger b : bi) System.out.println(b);
+        img.setPixels(img.convertToPixels(cipherPixels,6));
+        try{
+            img.saveImage("cipher4.png");
+        }catch(Exception e){ e.printStackTrace(); }
+
+
+/*        byte[] arr = { (byte)0x00,0x01, 0x02, 0x03, (byte)0x04 };
         arr = eraseLeadingZero(arr);
         ByteBuffer wrapped = ByteBuffer.wrap(arr);
         int temp = wrapped.getInt();
         System.out.println(toBinary(arr));
-        System.out.println(temp);
+        System.out.println(temp);*/
 /*        int temp = 2;
         int temp2 = 3;
         byte[] bytes1 = ByteBuffer.allocate(4).putInt(temp).array();

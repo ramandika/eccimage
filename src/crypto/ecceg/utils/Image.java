@@ -10,7 +10,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -136,7 +138,7 @@ public class Image {
         return noLeadingZero;
     }
 
-    public int[] convertToPixels(BigInteger[] bigInt, int groupSize){
+/*    public int[] convertToPixels(BigInteger[] bigInt, int groupSize){
         for(int i=0;i<bigInt.length;i++){
             byte[] byteArray = bigInt[i].toByteArray();
             byteArray = eraseLeadingZero(byteArray);
@@ -145,6 +147,35 @@ public class Image {
 
             }
         }
+    }*/
+
+    private String toBinary( byte[] bytes )
+    {
+        StringBuilder sb = new StringBuilder(bytes.length * Byte.SIZE);
+        for( int i = 0; i < Byte.SIZE * bytes.length; i++ )
+            sb.append((bytes[i / Byte.SIZE] << i % Byte.SIZE & 0x80) == 0 ? '0' : '1');
+        return sb.toString();
+    }
+
+    public int[] convertToPixels(List<BigInteger> bi, int numMember){
+        int[] arrInt = new int[bi.size()*numMember];
+        int iterator =0;
+        for(int i=0;i<bi.size();i++){
+            byte[] byteArray = bi.get(i).toByteArray(); //each byteArray contains numMeber of pixel
+            int complete = 4 - byteArray.length %4;
+            byte[] addition = new byte[complete+byteArray.length];
+            System.arraycopy(byteArray,0,addition,complete,byteArray.length);
+            for(int idx=0;idx<numMember;idx++){
+                byte[] temp = new byte[4];
+                System.arraycopy(addition,4*idx,temp,0,4);
+                ByteBuffer wrapped = ByteBuffer.wrap(temp);
+                int pixelVal = wrapped.getInt();
+                System.out.println(pixelVal);
+                arrInt[iterator] = pixelVal;
+                iterator++;
+            }
+        }
+        return arrInt;
     }
 
     public BigInteger[] convertToBigInt(int bits){
@@ -153,19 +184,25 @@ public class Image {
 /*        if(isAlpha()) size = 4;
         else size = 3;*/
         groupMember =  (bits/8)/size;
-        BigInteger[] result = new BigInteger[pixels.length/groupMember];
+        BigInteger[] result = new BigInteger[(int)Math.ceil((double)pixels.length/(double)groupMember)];
         int idx=0;
-        for(int i=0;i < pixels.length;i+=size){
+        for(int i=0;i < pixels.length;i+=groupMember){
             int j = i;
             byte[] groupPixels=new byte[1];
             Arrays.fill( groupPixels, (byte) 0 );
-            do{
+            do{ //combine n pixels together
                 if(j<pixels.length) {
                     byte[] tempbytes = ByteBuffer.allocate(size).putInt(pixels[j]).array();
                     groupPixels = appendByteArray(groupPixels,tempbytes);
-                }else break;
+                    String binary = toBinary(groupPixels);
+                    System.out.print("");
+                }else {
+                    byte[] tempbytes = new byte[4];
+                    Arrays.fill( tempbytes, (byte) 0 );
+                    groupPixels = appendByteArray(groupPixels,tempbytes);
+                }
                 j++;
-            }while(j%3!=0);
+            }while(j%groupMember!=0);
             result[idx]= new BigInteger(groupPixels);
             idx++;
         }
